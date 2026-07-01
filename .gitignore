@@ -1,2 +1,5 @@
 .venv
 pg_data/
+seed/
+*.parquet
+__pycache__

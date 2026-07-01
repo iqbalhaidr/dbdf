@@ -1,5 +1,7 @@
 import adbc_driver_postgresql.dbapi
 
+# TODO: kasus table belum ada di database (table baru)
+# TODO: chunking
 def write_database(uri, df, table_name, mode, identifier):
     with adbc_driver_postgresql.dbapi.connect(uri) as conn:
         match mode:
@@ -35,16 +37,19 @@ def _replace(conn, df, table_name):
         )
 
 # Staging-Insert on Conflict
+# TODO: kasus identifier terdiri dari beberapa attribute
+# TODO: optimasi (rps >= 10k/sec)
 def _upsert(conn, df, table_name, identifier):
     with conn.cursor() as cur:
         # Staging table
-        QUERY_CREATE_STAGING = f'CREATE UNLOGGED TABLE "{table_name}_staging" (LIKE "{table_name}")'
+        QUERY_CREATE_STAGING = f'CREATE TEMP TABLE "{table_name}_staging" (LIKE "{table_name}")'
         cur.execute(QUERY_CREATE_STAGING)
         
         cur.adbc_ingest(
             table_name=f"{table_name}_staging",
             data=df.to_arrow(),
-            mode="append"
+            mode="append",
+            db_schema_name="pg_temp"
         )
 
         # Insert on Conflict

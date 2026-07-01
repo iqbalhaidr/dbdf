@@ -1,6 +1,7 @@
 import polars as pl
 import adbc_driver_postgresql.dbapi
 
+# TODO: implementasi
 def write_database(uri, df, table_name, mode):
     with adbc_driver_postgresql.dbapi.connect(uri) as conn:
         match mode:
