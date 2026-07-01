@@ -3,7 +3,6 @@ from urllib.parse import urlparse
 
 from . import postgres
 
-# TODO: kasus df berupa pandas, bukan polars
 def write_database(
     uri: str,
     df: pl.DataFrame,
