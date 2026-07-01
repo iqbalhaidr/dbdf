@@ -17,30 +17,13 @@ if BASE_DIR not in sys.path:
 
 import src.dbdf.core as core  # your existing core.py
 
-DB_URI      = "postgresql://postgres:postgres@localhost:5432/mydb1"
+DB_URI      = "postgresql://postgres:postgres@localhost:5432/mydb2"
 TABLE_NAME  = "data"
-IDENTIFIER = "id"
+IDENTIFIER = ['id', 'email']
 
 # ─────────────────────────────────────────────────────────────────────────
 # STEP 1 — Seed main table from parquet (run once)
 # ─────────────────────────────────────────────────────────────────────────
-def seed_parquet():
-    print("[1/2] Seeding main 'data' table from data.parquet ...")
-
-    df = pl.read_parquet("test/new_data.parquet")
-    print(f"  Loaded {len(df):,} rows from parquet")
-
-    # Use ADBC bulk ingest — fastest path for initial load
-    with pg.connect(DB_URI) as conn:
-        with conn.cursor() as cur:
-            cur.adbc_ingest(TABLE_NAME, df.to_arrow(), mode="replace")
-
-            # 2. CRUCIAL: Add the primary key constraint that ADBC drops!
-            print(f"  Adding Primary Key constraint to column '{IDENTIFIER}'...")
-            cur.execute(f'ALTER TABLE "{TABLE_NAME}" ADD PRIMARY KEY ("{IDENTIFIER}");')
-        conn.commit()
-
-    print(f"  Done — {len(df):,} rows inserted into '{TABLE_NAME}'")
 
 def seed_main_table():
     print("[1/2] Seeding main 'data' table from batched parquets ...")
@@ -54,8 +37,13 @@ def seed_main_table():
             # .to_arrow() works perfectly with multi-file inputs
             cur.adbc_ingest(TABLE_NAME, df.to_arrow(), mode="replace")
 
+            if isinstance(IDENTIFIER, str):
+                constraint_cols = f'"{IDENTIFIER}"'
+            else:
+                constraint_cols = ", ".join(f'"{c}"' for c in IDENTIFIER)
+
             print(f"  Adding Primary Key constraint to column '{IDENTIFIER}'...")
-            cur.execute(f'ALTER TABLE "{TABLE_NAME}" ADD PRIMARY KEY ("{IDENTIFIER}");')
+            cur.execute(f'ALTER TABLE "{TABLE_NAME}" ADD CONSTRAINT unique_id UNIQUE ({constraint_cols});')
         conn.commit()
 
     print(f"  Done — {len(df):,} rows inserted into '{TABLE_NAME}'")

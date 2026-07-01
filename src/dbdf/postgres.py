@@ -37,9 +37,11 @@ def _replace(conn, df, table_name):
         )
 
 # Staging-Insert on Conflict
-# TODO: kasus identifier terdiri dari beberapa attribute
-# TODO: optimasi (rps >= 10k/sec)
+# TODO: optimasi (rps >= 10k/sec). kayanya udah, tapi butuh ditest lagi!
 def _upsert(conn, df, table_name, identifier):
+    if isinstance(identifier, str):
+        identifier = [identifier]
+
     with conn.cursor() as cur:
         # Staging table
         QUERY_CREATE_STAGING = f'CREATE TEMP TABLE "{table_name}_staging" (LIKE "{table_name}")'
@@ -54,13 +56,15 @@ def _upsert(conn, df, table_name, identifier):
 
         # Insert on Conflict
         cols    = ", ".join(f'"{c}"' for c in df.columns)
-        updates = ", ".join([f'"{c}" = EXCLUDED."{c}"' for c in df.columns if c != f"{identifier}"])
+        updates = ", ".join([f'"{c}" = EXCLUDED."{c}"' for c in df.columns if c not in identifier])
+        conflicts = ", ".join(f'"{c}"' for c in identifier)
+        action = f"DO UPDATE SET {updates}" if updates else "DO NOTHING"
 
         QUERY_UPSERT = f"""
             INSERT INTO "{table_name}" ({cols})
             SELECT * FROM "{table_name}_staging"
-            ON CONFLICT ("{identifier}")
-            DO UPDATE SET {updates};
+            ON CONFLICT ({conflicts})
+            {action};
         """
         cur.execute(QUERY_UPSERT)
 
