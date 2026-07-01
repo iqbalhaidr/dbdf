@@ -37,6 +37,7 @@ def _replace(conn, df, table_name):
         )
 
 # Staging-Insert on Conflict
+# NOTE: identifier dapat berupa single/multiple attribute. asalkan sudah memiliki constraint unique, primary key, atau constraint "unique" lainnya
 # TODO: optimasi (rps >= 10k/sec). kayanya udah, tapi butuh ditest lagi!
 def _upsert(conn, df, table_name, identifier):
     if isinstance(identifier, str):

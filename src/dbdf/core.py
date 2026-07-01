@@ -1,4 +1,5 @@
 import polars as pl
+import pandas as pd
 from urllib.parse import urlparse
 
 from . import postgres
@@ -6,11 +7,15 @@ from . import postgres
 # TODO: kasus df berupa pandas, bukan polars
 def write_database(
     uri: str,
-    df: pl.DataFrame,
+    df: pl.DataFrame | pd.DataFrame,
     table_name: str,
     mode: str = "append",
     identifier: str = None
 ):
+    # Convert to polars if df is pandas
+    if isinstance(df, pd.DataFrame):
+        df = pl.from_pandas(df, include_index=True)
+
     scheme = urlparse(uri).scheme
     match scheme:
         case "postgresql":
