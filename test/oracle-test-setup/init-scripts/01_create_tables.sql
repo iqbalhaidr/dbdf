@@ -1,0 +1,9 @@
+ALTER SESSION SET CONTAINER = XEPDB1;
+
+ALTER SESSION SET CURRENT_SCHEMA = testuser;
+
+CREATE TABLE customers (
+    customer_id  NUMBER PRIMARY KEY,
+    name         VARCHAR2(100),
+    email        VARCHAR2(100)
+);
