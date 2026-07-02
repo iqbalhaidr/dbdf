@@ -10,15 +10,16 @@ def write_database(
     table_name: str,
     mode: str = "append",
     identifier: str | list[str] = None,
+    dtype_overrides: dict[type, str] = None
     chunk_size: int = None
 ):
     # Convert to polars if df is pandas
     if isinstance(df, pd.DataFrame):
-        df = pl.from_pandas(df, include_index=True)
+        df = pl.from_pandas(df, include_index=False)
 
     scheme = urlparse(uri).scheme
     match scheme:
         case "postgresql":
-            postgres.write_database(uri, df, table_name, mode, identifier, chunk_size)
+            postgres.write_database(uri, df, table_name, mode, identifier, chunk_size, dtype_overrides)
         case "oracle":
             return
