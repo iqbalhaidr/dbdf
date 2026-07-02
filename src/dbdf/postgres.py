@@ -1,9 +1,6 @@
 import adbc_driver_postgresql.dbapi
 import polars as pl
 
-from .ddl import generate_ddl
-
-# TODO: kasus table belum ada di database (table baru)
 def write_database(uri, df, table_name, mode, identifier, chunk_size, dtype_overrides):
     arrow_data = df.to_arrow()
     if chunk_size is not None:
@@ -118,7 +115,7 @@ def _is_table_exists(conn, table_name) -> bool:
             SELECT 1 
             FROM information_schema.tables 
             WHERE table_name = '{table_name}' 
-            AND table_schema = current_schema();
+            AND table_schema = current_schema()
         """)
         return cur.fetchone() is not None
 

@@ -10,7 +10,7 @@ def write_database(
     table_name: str,
     mode: str = "append",
     identifier: str | list[str] = None,
-    dtype_overrides: dict[type, str] = None
+    dtype_overrides: dict[type, str] = None,
     chunk_size: int = None
 ):
     # Convert to polars if df is pandas
