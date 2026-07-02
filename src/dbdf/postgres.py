@@ -1,5 +1,15 @@
 import adbc_driver_postgresql.dbapi
+import pyarrow as pa
 import polars as pl
+from typing import Iterator, Optional, Union
+
+def read_database(uri: str, query: str) -> pl.DataFrame:
+    # TODO: chunking pakai cur.fetch_record_batch() (streaming Arrow RecordBatchReader)
+    with adbc_driver_postgresql.dbapi.connect(uri) as conn:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            table = cur.fetch_arrow_table()
+    return pl.from_arrow(table)
 
 def write_database(uri, df, table_name, mode, identifier, chunk_size, dtype_overrides):
     arrow_data = df.to_arrow()
