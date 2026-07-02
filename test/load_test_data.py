@@ -64,7 +64,8 @@ def run_staging_upsert():
         df          = df,
         table_name  = TABLE_NAME,
         mode        = "upsert",
-        identifier = IDENTIFIER,
+        identifier  = IDENTIFIER,
+        chunk_size  = 100_000
     )
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
