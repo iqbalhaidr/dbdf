@@ -18,9 +18,11 @@ TABLE = "customers"
 
 
 def make_sample_df(n: int, start_id: int = 1) -> pl.DataFrame:
+    padding_length = 985 
+    
     return pl.DataFrame({
         "customer_id": list(range(start_id, start_id + n)),
-        "name": [f"Customer {i}" for i in range(start_id, start_id + n)],
+        "name": [f"Customer {i}".ljust(padding_length, 'X') for i in range(start_id, start_id + n)],
         "email": [f"user{i}@example.com" for i in range(start_id, start_id + n)],
     })
 
