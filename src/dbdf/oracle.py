@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import polars as pl
 import oracledb
 from typing import Literal, List, Dict, Any
@@ -60,6 +61,7 @@ def write_database(
         "chunks_processed": 0,
     }
     chunk_elapsed_times = []
+    chunk_process_time = []
 
     try:
         try:
@@ -69,6 +71,7 @@ def write_database(
             cursor.execute(f"CREATE TABLE {staging_table} AS SELECT * FROM {table_name} WHERE 1=0")
 
         for idx, chunk in enumerate(_data_generator(df, chunk_size)):
+            start_time = time.perf_counter()
             is_append = idx > 0  # chunk pertama INSERT (staging kosong), sisanya APPEND
             chunk_files = []
 
@@ -89,13 +92,13 @@ def write_database(
                 total_stats["chunks_processed"] += 1
                 chunk_elapsed_times.append(chunk_stats.get("elapsed_time", "00:00:00"))
             finally:
-                # Hapus file chunk ini segera, jangan tunggu sampai semua chunk selesai
-                # (atau sampai exception menggelembung ke atas). Untuk data jutaan baris
-                # yang terpecah jadi banyak chunk, menunda cleanup bisa membuat puluhan
-                # file CSV besar menumpuk di disk sekaligus.
                 cleanup_temp_files(chunk_files)
+            
+            end_time = time.perf_counter() 
+            chunk_process_time.append(round(end_time - start_time, 4))
 
         total_stats["elapsed_time_per_chunk"] = chunk_elapsed_times
+        total_stats["chunk_process_time"] = chunk_process_time
 
         # Merge ke target sekali saja setelah semua chunk selesai dimuat ke staging
         if total_stats["loaded_rows"] > 0:
@@ -166,6 +169,8 @@ def generate_control_file(df, staging_table, csv_path, append: bool = False):
             column_defs.append(f'{col} DATE "YYYY-MM-DD"')
         elif isinstance(dtype, pl.Datetime) or dtype == pl.Datetime:
             column_defs.append(f'{col} TIMESTAMP "YYYY-MM-DD HH24:MI:SS"')
+        elif dtype in (pl.Utf8, pl.String): #Test stuff to ensure sql does not reject a teks with > 255 char
+            column_defs.append(f'{col} CHAR(4000)')
         else:
             column_defs.append(col)
 
@@ -210,7 +215,8 @@ def execute_sql_loader(uri, control_file):
         f"log={log_file}",
         f"bad={bad_file}",
         f"discard={discard_file}",
-        "errors=1000"  # Toleransi error baris sebelum dibatalkan
+        "errors=1000",
+        "direct=true"
     ]
 
     subprocess.run(cmd, capture_output=True, text=True)
