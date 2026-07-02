@@ -1,4 +1,5 @@
 import adbc_driver_postgresql.dbapi
+from .ddl import generate_ddl
 
 # TODO: kasus table belum ada di database (table baru)
 # TODO: chunking
@@ -68,6 +69,28 @@ def _upsert(conn, df, table_name, identifier):
             {action};
         """
         cur.execute(QUERY_UPSERT)
+
+def _table_exists(conn, table_name) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT 1 FROM information_schema.tables WHERE table_name = %s",
+            [table_name],
+        )
+        return cur.fetchone() is not None
+
+def _ensure_table(conn, df, table_name, identifier):
+    if _table_exists(conn, table_name):
+        return
+    if isinstance(identifier, str):
+        identifier = [identifier]
+    ddl = generate_ddl(
+        dataframe=df,
+        table_name=table_name,
+        dialect="postgresql",
+        primary_key=identifier or None,
+    )
+    with conn.cursor() as cur:
+        cur.execute(ddl)
 
 # Benchmark
 '''
