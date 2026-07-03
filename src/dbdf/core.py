@@ -48,4 +48,4 @@ def write_database(
         case "postgresql":
             postgres.write_database(uri, df, table_name, mode, identifier, chunk_size, dtype_overrides)
         case "oracle":
-            return
+            oracle.write_database(uri, df, table_name, mode, chunk_size, identifier, dtype_overrides)

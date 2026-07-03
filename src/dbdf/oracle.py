@@ -8,6 +8,87 @@ from typing import Literal, List, Dict, Any
 
 DBWriteMode = Literal["append", "replace", "upsert"]
 
+# ── Polars → Oracle Type Mapping ──
+POLARS_TO_ORACLE: dict[type, str] = {
+    pl.Int8: "NUMBER(3)",
+    pl.Int16: "NUMBER(5)",
+    pl.Int32: "NUMBER(10)",
+    pl.Int64: "NUMBER(19)",
+    pl.Int128: "NUMBER(38)",
+    pl.UInt8: "NUMBER(3)",
+    pl.UInt16: "NUMBER(5)",
+    pl.UInt32: "NUMBER(10)",
+    pl.UInt64: "NUMBER(20)",
+    pl.Float32: "BINARY_FLOAT",
+    pl.Float64: "BINARY_DOUBLE",
+    pl.Date: "DATE",
+    pl.Time: "TIMESTAMP",
+    pl.Datetime: "TIMESTAMP",
+    pl.Duration: "INTERVAL DAY TO SECOND",
+    pl.String: "VARCHAR2(255)",
+    pl.Categorical: "VARCHAR2(255)",
+    pl.Utf8: "VARCHAR2(255)",
+    pl.Binary: "BLOB",
+    pl.Boolean: "NUMBER(1)",
+    pl.Null: "VARCHAR2(255)",
+}
+
+
+def _infer_dtype(dtype: pl.DataType) -> str:
+    """Map Polars dtype ke Oracle SQL type."""
+    # Handle Decimal
+    if isinstance(dtype, pl.Decimal):
+        p = dtype.precision or 18
+        s = dtype.scale or 0
+        return f"NUMBER({p},{s})"
+
+    datatype = POLARS_TO_ORACLE.get(type(dtype))
+    return datatype if datatype is not None else "VARCHAR2(255)"
+
+
+def _is_table_exists(conn, table_name: str) -> bool:
+    """Cek apakah tabel sudah ada di Oracle."""
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT 1 FROM user_tables
+        WHERE table_name = :1
+    """, [table_name.upper()])
+    result = cursor.fetchone() is not None
+    cursor.close()
+    return result
+
+
+def _ensure_table_exists(conn, df: pl.DataFrame, table_name: str,
+                         key_columns: list = None, dtype_overrides: dict = None):
+    """Auto-create tabel di Oracle jika belum ada."""
+    if _is_table_exists(conn, table_name):
+        return
+
+    print(f"[DBDF] Table '{table_name}' not found. Auto-creating...")
+
+    dtype_overrides = dtype_overrides or {}
+    cols_def = []
+    for col_name, dtype in df.schema.items():
+        ora_type = dtype_overrides.get(col_name) or _infer_dtype(dtype)
+        cols_def.append(f'{col_name} {ora_type}')
+    cols_sql = ", ".join(cols_def)
+
+    # Primary key
+    pk_sql = ""
+    if key_columns:
+        if isinstance(key_columns, str):
+            key_columns = [key_columns]
+        pk_cols = ", ".join(key_columns)
+        pk_sql = f", PRIMARY KEY ({pk_cols})"
+
+    query = f'CREATE TABLE {table_name} ({cols_sql}{pk_sql})'
+    print(f"[DBDF] Executing: {query}")
+    cursor = conn.cursor()
+    cursor.execute(query)
+    conn.commit()
+    cursor.close()
+
+
 
 def write_database(
     uri: str,
@@ -16,6 +97,7 @@ def write_database(
     mode: DBWriteMode,
     chunk_size: int = 0,
     key_columns: List[str] = None,
+    dtype_overrides: dict = None,
 ):
     """
     Main orchestration function.
@@ -52,6 +134,10 @@ def write_database(
     staging_table = f"{table_name}_staging"
     conn = oracledb.connect(uri)
     cursor = conn.cursor()
+
+    # DDL: Auto-create tabel target kalau belum ada
+    _ensure_table_exists(conn, df, table_name, key_columns, dtype_overrides)
+
 
     total_stats = {
         "loaded_rows": 0,
