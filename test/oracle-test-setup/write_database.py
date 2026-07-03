@@ -25,6 +25,7 @@ def write_database(
         if invalid_keys:
             raise ValueError(f"key_columns not found in dataframe: {invalid_keys}")
 
+    # Polars menggunakan is_empty() bukan empty
     if df.is_empty():
         return {"status": "skipped", "reason": "DataFrame is empty"}
 
@@ -54,6 +55,7 @@ def write_database(
 
         overall_start = time.perf_counter()
 
+        # PROSES CHUNKING LANGSUNG DENGAN POLARS
         for idx, chunk in enumerate(_data_generator(df, chunk_size)):
             start_time = time.perf_counter()
 
@@ -105,16 +107,17 @@ def direct_path_insert(
 
     columns = df_chunk.columns
 
-
+    # TIDAK PERLU LAGI df_chunk.astype(object).where(...)
+    # Polars + Arrow menangani tipe data dan NULLs secara native & zero-copy.
 
     try:
         conn.direct_path_load(
             schema_name=schema_name,
             table_name=staging_table_name,
             column_names=columns,
-            data=df_chunk, 
+            data=df_chunk, # Langsung oper objek Polars DataFrame
         )
-        return df_chunk.height, 
+        return df_chunk.height, 0 # Gunakan .height untuk menghitung baris Polars
     except oracledb.DatabaseError as db_err:
         raise RuntimeError(f"Direct Path Load Error: {db_err}")
 
@@ -160,6 +163,7 @@ def merge_to_target(
 
 
 def _data_generator(df: pl.DataFrame, chunk_size: int):
+    # Menggunakan df.height yang merupakan standar Polars untuk jumlah baris (ekuivalen len(df))
     n_rows = df.height
     
     if not chunk_size or chunk_size >= n_rows:

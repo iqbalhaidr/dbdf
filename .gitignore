@@ -3,3 +3,4 @@ pg_data/
 seed/
 *.parquet
 __pycache__
+test/oracle-test-setup/*.csv

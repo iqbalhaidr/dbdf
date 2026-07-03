@@ -22,6 +22,7 @@ ORACLE_URI = os.environ.get("ORACLE_URI", "testuser/TestPass123@localhost:1521/X
 TABLE_NAME = "data"
 KEY_COLUMNS = ["id"]  # ganti ke ["id", "email"] kalau mau composite key
 CHUNK_SIZE = 200_000   # ukuran batch per load ke SQL*Loader
+SCHEMA_NAME = "testuser"
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -45,7 +46,7 @@ def seed_main_table():
 
         mode = "replace" if idx == 0 else "append"
         result = write_database(
-            ORACLE_URI, df, TABLE_NAME,
+            ORACLE_URI, df, SCHEMA_NAME, TABLE_NAME,
             mode=mode,
             chunk_size=CHUNK_SIZE,
         )
@@ -70,6 +71,7 @@ def run_staging_upsert():
     start_time = time.perf_counter()
     result = write_database(
         uri=ORACLE_URI,
+        schema_name=SCHEMA_NAME,
         df=df,
         table_name=TABLE_NAME,
         mode="upsert",
