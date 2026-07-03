@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
   oracle_db_lite:
-    image: container-registry.oracle.com/database/free:latest-lite
+    image: container-registry.oracle.com/database/free:latest
     container_name: oracle_db_lite
     ports:
       - "1521:1521"
@@ -27,3 +27,4 @@ volumes:
 # docker exec -it oracle_db_lite sqlplus sys/oracle@FREE as sysdba
 # docker exec -it oracle_db_lite sqlplus system/oracle@FREE
 # docker exec -it oracle_db_lite sqlplus pdbadmin/oracle@FREEPDB1
+# docker exec -it oracle_db_lite sqlplus app_user/oracle@FREEPDB1

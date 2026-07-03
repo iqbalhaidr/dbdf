@@ -4,6 +4,6 @@ ALTER SESSION SET CURRENT_SCHEMA = testuser;
 
 CREATE TABLE customers (
     customer_id  NUMBER PRIMARY KEY,
-    name         VARCHAR2(100),
+    name         VARCHAR2(1000),
     email        VARCHAR2(100)
 );

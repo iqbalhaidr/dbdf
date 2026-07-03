@@ -6,6 +6,7 @@ from typing import Optional, Union, Iterator
 
 from . import postgres
 from . import oracle
+from . import oracle2
 from . import files
 
 
@@ -32,20 +33,22 @@ def read_file(path: str, columns: Optional[list[str]] = None) -> pl.DataFrame:
 
 def write_database(
     uri: str,
+    creds: dict[str, str],
     df: pl.DataFrame | pd.DataFrame,
     table_name: str,
     mode: str = "append",
     identifier: str | list[str] = None,
     dtype_overrides: dict[type, str] = None,
-    chunk_size: int = None
+    chunk_size: int = None,
+    db_type: str = None
 ):
     # Convert to polars if df is pandas
     if isinstance(df, pd.DataFrame):
         df = pl.from_pandas(df, include_index=False)
 
     scheme = urlparse(uri).scheme
-    match scheme:
+    match db_type:
         case "postgresql":
             postgres.write_database(uri, df, table_name, mode, identifier, chunk_size, dtype_overrides)
         case "oracle":
-            return
+            oracle2.write_database(creds, df, table_name, mode, identifier, chunk_size, dtype_overrides)
