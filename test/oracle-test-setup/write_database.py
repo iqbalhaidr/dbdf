@@ -11,10 +11,12 @@ def write_database(
     df: pl.DataFrame,
     schema_name: str,
     table_name: str,
-    mode: DBWriteMode,
+    mode: str, 
     chunk_size: int = 0,
     key_columns: List[str] = None,
 ):
+    function_start = time.perf_counter() 
+
     if mode not in ["append", "replace", "upsert"]:
         raise ValueError(f"Invalid mode: {mode}")
 
@@ -25,7 +27,6 @@ def write_database(
         if invalid_keys:
             raise ValueError(f"key_columns not found in dataframe: {invalid_keys}")
 
-    # Polars menggunakan is_empty() bukan empty
     if df.is_empty():
         return {"status": "skipped", "reason": "DataFrame is empty"}
 
@@ -37,10 +38,13 @@ def write_database(
     cursor = conn.cursor()
 
     total_stats = {
+        "status": "in_progress",
         "loaded_rows": 0,
         "rejected_rows": 0,
-        "elapsed_time": "00:00:00",
         "chunks_processed": 0,
+        "elapsed_time_seconds": 0.0,
+        "chunk_loading_time_seconds": 0.0,
+        "merge_time_seconds": 0.0,
     }
     chunk_process_time = []
 
@@ -53,7 +57,7 @@ def write_database(
             )
             conn.commit()
 
-        overall_start = time.perf_counter()
+        chunk_loading_start = time.perf_counter()
 
         # PROSES CHUNKING LANGSUNG DENGAN POLARS
         for idx, chunk in enumerate(_data_generator(df, chunk_size)):
@@ -72,28 +76,40 @@ def write_database(
             end_time = time.perf_counter()
             chunk_process_time.append(round(end_time - start_time, 4))
 
-        total_stats["elapsed_time"] = str(round(time.perf_counter() - overall_start, 4))
+        # Simpan total waktu chunking
+        chunk_loading_time = time.perf_counter() - chunk_loading_start
+        total_stats["chunk_loading_time_seconds"] = round(chunk_loading_time, 4)
         total_stats["chunk_process_time"] = chunk_process_time
 
-        # MERGE KE TARGET
+        merge_start = time.perf_counter() 
+        
         if total_stats["loaded_rows"] > 0:
             merge_to_target(
                 cursor, qualified_staging, qualified_target, mode, df.columns, key_columns
             )
             conn.commit()
+
+            # Simpan durasi merge
+            merge_time = time.perf_counter() - merge_start
+            total_stats["merge_time_seconds"] = round(merge_time, 4)
             total_stats["status"] = "success"
         else:
             conn.rollback()
             total_stats["status"] = "failed_or_empty"
 
-        return total_stats
-
     except Exception as e:
         conn.rollback()
-        raise RuntimeError(f"Database write failed at chunk {total_stats['chunks_processed'] + 1}: {e}")
+        total_stats["status"] = f"failed: {str(e)}"
+        raise
     finally:
+        total_elapsed = time.perf_counter() - function_start
+        total_stats["elapsed_time_seconds"] = round(total_elapsed, 4)
+        
+        # Pastikan koneksi selalu ditutup
         cursor.close()
         conn.close()
+
+    return total_stats
 
 
 def direct_path_insert(
