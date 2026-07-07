@@ -27,8 +27,8 @@ rng  = np.random.default_rng(SEED)
 random.seed(SEED)
 
 # ── Size targets ───────────────────────────────────────────────────────────
-MAIN_ROWS    = 6_000_000   # ~1 GB
-STAGING_ROWS = 5_000_000     # ~100 MB
+MAIN_ROWS    = 1_000_000   # ~1 GB
+STAGING_ROWS = 1_000_000     # ~100 MB
 UPDATE_RATIO = 0.5         # 50% updates, 50% new inserts in staging
 
 # ── Lookup pools (realistic but fast — no Faker needed) ───────────────────

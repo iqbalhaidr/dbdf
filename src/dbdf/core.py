@@ -7,6 +7,7 @@ from typing import Optional, Union, Iterator
 from . import postgres
 from . import oracle
 from . import oracle2
+from . import oracle3
 from . import files
 
 
@@ -52,3 +53,5 @@ def write_database(
             postgres.write_database(uri, df, table_name, mode, identifier, chunk_size, dtype_overrides)
         case "oracle":
             oracle2.write_database(creds, df, table_name, mode, identifier, chunk_size, dtype_overrides)
+        case "oracle3":
+            oracle3.write_database(uri, df, "APP_USER", table_name, mode, chunk_size, identifier)

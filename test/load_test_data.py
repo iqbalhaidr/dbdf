@@ -18,8 +18,8 @@ if BASE_DIR not in sys.path:
 import src.dbdf.core as core  # your existing core.py
 
 DB_URI      = "postgresql://postgres:postgres@localhost:5432/mydb2"
-TABLE_NAME  = "data"
-IDENTIFIER = ['id', 'email']
+TABLE_NAME  = "data3"
+IDENTIFIER = ['id']
 
 # ─────────────────────────────────────────────────────────────────────────
 # STEP 1 — Seed main table from parquet (run once)
@@ -43,7 +43,7 @@ def seed_main_table():
                 constraint_cols = ", ".join(f'"{c}"' for c in IDENTIFIER)
 
             print(f"  Adding Primary Key constraint to column '{IDENTIFIER}'...")
-            cur.execute(f'ALTER TABLE "{TABLE_NAME}" ADD CONSTRAINT unique_id UNIQUE ({constraint_cols});')
+            cur.execute(f'ALTER TABLE "{TABLE_NAME}" ADD CONSTRAINT unique_id2 UNIQUE ({constraint_cols});')
         conn.commit()
 
     print(f"  Done — {len(df):,} rows inserted into '{TABLE_NAME}'")
@@ -65,7 +65,10 @@ def run_staging_upsert():
         table_name  = TABLE_NAME,
         mode        = "upsert",
         identifier  = IDENTIFIER,
-        chunk_size  = 100_000
+        chunk_size  = 200_000,
+        creds=None,
+        db_type="postgresql"
+
     )
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time

@@ -110,13 +110,9 @@ POLARS_TO_ORACLE: dict[type, str] = {
 }
 
 def _infer_dtype(dtype: pl.DataType) -> str:
-    datatype = POLARS_TO_ORACLE.get(dtype)
+    base_dtype = dtype.base_type() if hasattr(dtype, "base_type") else dtype
+    datatype = POLARS_TO_ORACLE.get(base_dtype)
     return datatype if datatype is not None else "VARCHAR2(4000)"
-
-# def _is_table_exists(conn, schema_name, table_name) -> bool:
-#     with conn.cursor() as cur:
-#         cur.execute(f"SELECT 1 FROM ALL_TABLES WHERE OWNER = {_q(schema_name)} AND TABLE_NAME = {_q(table_name)}")
-#         return cur.fetchone() is not None
     
 def _is_table_exists(conn, schema_name, table_name) -> bool:
     with conn.cursor() as cur:
