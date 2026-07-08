@@ -14,7 +14,7 @@ import polars as pl
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 # 2. Import starting directly with 'dbdf'
-from dbdf import oracle2 
+from dbdf import oracle 
 
 
 def test_write_polars_dataframe():
@@ -25,7 +25,7 @@ def test_write_polars_dataframe():
 
     creds = {"user": "APP_USER", "password": "oracle", "dsn": "localhost:1521/FREEPDB1"}
 
-    oracle2.write_database(
+    oracle.write_database(
         creds, df, "employee",
         mode="append", identifier=None, chunk_size=None, dtype_overrides=None
     )

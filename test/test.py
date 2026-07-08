@@ -8,7 +8,7 @@ import oracledb
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 # from dbdf.core import write_database
-from dbdf.oracle2 import write_database
+from dbdf.oracle import write_database
 
 
 def _append(conn, schema_name, table_name, column_names, df, batch_size):

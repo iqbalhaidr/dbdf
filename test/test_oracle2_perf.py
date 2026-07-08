@@ -14,7 +14,7 @@ import oracledb
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 # 2. Import starting directly with 'dbdf'
-from dbdf import oracle2 
+from dbdf import oracle 
 
 # Setup & Credentials Parsing
 ORACLE_URI = os.environ.get("ORACLE_URI", "testuser/TestPass123@oracle-db:1521/XEPDB1")
@@ -61,7 +61,7 @@ def test_append():
     df = make_sample_df(1000000, start_id=1)
     
     t0 = time.perf_counter()
-    oracle2.write_database(
+    oracle.write_database(
         creds=CREDS, 
         df=df, 
         table_name=TABLE, 
@@ -81,7 +81,7 @@ def test_replace():
     df = make_sample_df(300, start_id=1)
     
     t0 = time.perf_counter()
-    oracle2.write_database(
+    oracle.write_database(
         creds=CREDS, 
         df=df, 
         table_name=TABLE, 
@@ -103,7 +103,7 @@ def test_upsert():
     df = pl.concat([df_update, df_new])
     
     t0 = time.perf_counter()
-    oracle2.write_database(
+    oracle.write_database(
         creds=CREDS, 
         df=df, 
         table_name=TABLE,
@@ -126,7 +126,7 @@ def test_empty_dataframe():
         if df.is_empty():
             print("✅ Skipped successfully (Handled at wrapper level).")
         else:
-            oracle2.write_database(CREDS, df, TABLE, "append", None, None, None)
+            oracle.write_database(CREDS, df, TABLE, "append", None, None, None)
     except Exception as e:
         print(f"⚠️ Note: Implementation raised exception on empty DF: {e}")
 

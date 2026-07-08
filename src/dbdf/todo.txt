@@ -1,0 +1,9 @@
+[DONE] read_database
+[DONE] parquet, csv
+testing dengan dataset standar
+better mechanism table is not exists/smaller CODE
+dokumentasi/komentar/manual
+setup supaya bisa pakai pip github
+logging dan mekanisme failed
+overall reliability
+pandas/polars
