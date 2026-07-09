@@ -3,10 +3,11 @@ import polars as pl
 
 class DatabaseAdapter(ABC):
     def __init__(self, connection_info: str | dict) -> None:
-        self.connection_info
+        self.connection_info = connection_info
 
     @abstractmethod
     def write_database(
+        self,
         df: pl.DataFrame,
         table_name: str,
         mode: str = "append",

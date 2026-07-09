@@ -3,6 +3,8 @@ import pandas as pd
 
 from .postgres import PostgresAdapter
 from .oracle import OracleAdapter
+from .csv import CsvAdapter
+from .parquet import ParquetAdapter
 
 def write_database(
     db_type: str,
@@ -23,9 +25,20 @@ def write_database(
     adapter = _get_adapter(db_type, connection_info)
     adapter.write_database(df, table_name, mode, identifier, if_table_not_exists, dtype_overrides, chunk_size, schema_name)
 
+def read_database(
+    db_type: str,
+    connection_info: str | dict,
+    query: str,
+    chunk_size: int = None
+) -> pl.DataFrame:
+    adapter = _get_adapter(db_type, connection_info)
+    return adapter.read_database(query, chunk_size)
+
 ADAPTERS = {
     "postgresql": PostgresAdapter,
-    "oracle": OracleAdapter
+    "oracle": OracleAdapter,
+    "csv": CsvAdapter,
+    "parquet": ParquetAdapter
 }
 
 def _get_adapter(db_type: str, connection_info: str | dict):
