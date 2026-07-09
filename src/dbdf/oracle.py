@@ -1,5 +1,7 @@
 import oracledb
 import polars as pl
+import math
+from tqdm import tqdm
 
 from .base import DatabaseAdapter
 
@@ -49,6 +51,55 @@ class OracleAdapter(DatabaseAdapter):
                     self._upsert(conn, schema, table_name, columns, df, chunk_size, identifier)
 
             conn.commit()
+
+    def write_database_with_progress_bar(
+        self, 
+        df: pl.DataFrame,
+        table_name: str,
+        mode: str = "append",
+        identifier: list[str] = None,
+        if_table_not_exists: str = "fail",
+        dtype_overrides: dict[type, str] = None,
+        chunk_size: int = None,
+        schema_name: str = None
+    ) -> bool:
+        schema = schema_name if schema_name is not None else self.connection_info["user"]
+        columns = df.columns
+        username = self.connection_info["user"]
+        password = self.connection_info["password"]
+        dsn = self.connection_info["dsn"]
+
+        num_rows = df.height
+        c_size = chunk_size if chunk_size else num_rows
+        total_batches = math.ceil(num_rows / c_size)
+
+        with oracledb.connect(user=self._q(username), password=password, dsn=dsn) as conn:
+            self._ensure_table_exists(conn, schema, df, table_name, identifier, if_table_not_exists, dtype_overrides)
+            
+            pbar = tqdm(df.iter_slices(n_rows=c_size), total=total_batches, desc=f"Writing to {table_name}")
+
+            for batch_idx, df_chunk in enumerate(pbar):
+                current_mode = "append" if (mode == "replace" and batch_idx > 0) else mode
+
+                try:
+                    match current_mode:
+                        case "append":
+                            self._append(conn, schema, table_name, columns, df_chunk, c_size)
+                        case "replace":
+                            self._replace(conn, schema, table_name, columns, df_chunk, c_size)
+                        case "upsert":
+                            self._upsert(conn, schema, table_name, columns, df_chunk, c_size, identifier)
+
+                    conn.commit()
+
+                except Exception as e:
+                    start_row = batch_idx * c_size
+                    end_row = min((batch_idx + 1) * c_size, num_rows)
+                    print(f"\n[ERROR] Gagal di batch {batch_idx + 1}/{total_batches} (Baris {start_row} - {end_row}). Pesan: {e}")
+                    conn.rollback()
+                    raise e
+            
+        return True
 
     def _q(self, in_str: str):
         return f'"{in_str}"'

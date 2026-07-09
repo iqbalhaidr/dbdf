@@ -1,18 +1,35 @@
 import adbc_driver_postgresql.dbapi
 import polars as pl
+import math
+from tqdm import tqdm
 
 from .base import DatabaseAdapter
 
 class PostgresAdapter(DatabaseAdapter):
     def __init__(self, connection_info: str | dict) -> None:
         super().__init__(connection_info=connection_info)
+        self.connection_uri = self._build_connection_uri(connection_info)
+
+    def _build_connection_uri(self, info: str | dict) -> str:
+        if isinstance(info, str):
+            return info
+        elif isinstance(info, dict):
+            user = info.get('user', '')
+            password = info.get('password', '')
+            host = info.get('host', 'localhost')
+            port = info.get('port', 5432)
+            database = info.get('database', '')
+            return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+        else:
+            raise TypeError("connection_info harus berupa dictionary atau string URL koneksi.")
+
 
     def read_database(
         self, 
         query: str, 
         chunk_size: int = None
     ) -> pl.DataFrame:
-        with adbc_driver_postgresql.dbapi.connect(self.connection_info) as conn:
+        with adbc_driver_postgresql.dbapi.connect(self.connection_uri) as conn:
             return pl.read_database(query=query, connection=conn, iter_batches=False, batch_size=chunk_size)
 
     def write_database(
@@ -31,8 +48,10 @@ class PostgresAdapter(DatabaseAdapter):
 
         # Extract columns name
         columns = df.columns
+        print("kontol")
+        print(self.connection_info)
 
-        with adbc_driver_postgresql.dbapi.connect(self.connection_info) as conn:
+        with adbc_driver_postgresql.dbapi.connect(self.connection_uri) as conn:
             try:
                 self._ensure_table_exists(conn, df, table_name, identifier, if_table_not_exists, dtype_overrides)
             except ValueError as e:
@@ -47,6 +66,59 @@ class PostgresAdapter(DatabaseAdapter):
                     self._upsert(conn, adbc_payload, table_name, identifier, columns)
                 
             conn.commit()
+
+        return True
+    
+    def write_database_with_progress_bar(
+        self,
+        df: pl.DataFrame,
+        table_name: str,
+        mode: str = "append",
+        identifier: list[str] = None,
+        if_table_not_exists: str = "fail",
+        dtype_overrides: dict[type, str] = None,
+        chunk_size: int = None,
+        schema_name: str = None
+    ) -> bool: 
+        columns = df.columns
+        num_rows = df.height
+        c_size = chunk_size if chunk_size else num_rows
+        total_batches = math.ceil(num_rows / c_size)
+
+        with adbc_driver_postgresql.dbapi.connect(self.connection_uri) as conn:
+            try:
+                self._ensure_table_exists(conn, df, table_name, identifier, if_table_not_exists, dtype_overrides)
+            except ValueError as e:
+                print(e)
+                return False
+
+            # Inisialisasi Progress Bar
+            pbar = tqdm(df.iter_slices(n_rows=c_size), total=total_batches, desc=f"Writing to {table_name}")
+
+            for batch_idx, df_chunk in enumerate(pbar):
+                adbc_payload = df_chunk.to_arrow()
+                
+                # Cegah TRUNCATE berkali-kali pada mode replace
+                current_mode = "append" if (mode == "replace" and batch_idx > 0) else mode
+
+                try:
+                    match current_mode:
+                        case "append":
+                            self._append(conn, adbc_payload, table_name)
+                        case "replace":
+                            self._replace(conn, adbc_payload, table_name)
+                        case "upsert":
+                            self._upsert(conn, adbc_payload, table_name, identifier, columns)
+                    
+                    # Commit per batch. Jika 1 batch gagal, batch sebelumnya tetap tersimpan.
+                    conn.commit()
+
+                except Exception as e:
+                    start_row = batch_idx * c_size
+                    end_row = min((batch_idx + 1) * c_size, num_rows)
+                    print(f"\n[ERROR] Gagal di batch {batch_idx + 1}/{total_batches} (Baris {start_row} - {end_row}). Pesan: {e}")
+                    conn.rollback() 
+                    raise e # Hentikan eksekusi setelah error
 
         return True
     
