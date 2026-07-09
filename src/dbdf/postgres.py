@@ -48,7 +48,6 @@ class PostgresAdapter(DatabaseAdapter):
 
         # Extract columns name
         columns = df.columns
-        print("kontol")
         print(self.connection_info)
 
         with adbc_driver_postgresql.dbapi.connect(self.connection_uri) as conn:
@@ -198,7 +197,7 @@ class PostgresAdapter(DatabaseAdapter):
             cur.execute(f"""
                 SELECT 1 
                 FROM information_schema.tables 
-                WHERE table_name = {self._q(table_name)} 
+                WHERE table_name = '{table_name}' 
                 AND table_schema = current_schema()
             """)
             return cur.fetchone() is not None

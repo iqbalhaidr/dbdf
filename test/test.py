@@ -12,12 +12,13 @@ write_database(db_type="parquet", connection_info="test/seed.parquet", df=df, ta
 
 
 t0 = time.perf_counter()
-write_database(db_type="postgresql", connection_info={"host": "localhost", "port": 5432, "user": "postgres", "password": "pass123", "database": "test"}, df=df, table_name="test_table", chunk_size=100000)
+write_database(db_type="postgresql", connection_info={"host": "localhost", "port": 5432, "user": "postgres", "password": "pass123", "database": "test"}, df=df, table_name="test_table", chunk_size=100000, if_table_not_exists="create")
 t1 = time.perf_counter()
 print(f"[PROCESS Write Postgres Without Progress Bar]={t1-t0:.2f}s")
 
 t2 = time.perf_counter()
-write_database_with_progress_bar(db_type="postgresql", connection_info={"host": "localhost", "port": 5432, "user": "postgres", "password": "pass123", "database": "test"}, df=df, table_name="test_table", chunk_size=100000)
+write_database_with_progress_bar(db_type="postgresql", connection_info={"host": "localhost", "port": 5432, "user": "postgres", "password": "pass123", "database": "test"}, df=df, table_name="test_table", chunk_size=100000, if_table_not_exists="create")
+t1 = time.perf_counter()
 t3 = time.perf_counter()
 print(f"[PROCESS Write Postgres With Progress Bar]={t3-t2:.2f}s")
 
