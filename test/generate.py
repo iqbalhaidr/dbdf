@@ -2,7 +2,7 @@ import os
 import duckdb
 
 FILENAME = "test/seed.csv"
-SF = 0.5
+SF = 0.1
 
 con = duckdb.connect()
 con.execute("INSTALL tpch; LOAD tpch;")
