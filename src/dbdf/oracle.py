@@ -5,17 +5,13 @@ from tqdm import tqdm
 
 from .base import DatabaseAdapter
 
+
 class OracleAdapter(DatabaseAdapter):
     def __init__(self, target: str | dict) -> None:
         super().__init__(target=target)
 
     def read_database(
-        self,
-        *,
-        query: str | None = None,
-        chunk_size: int | None = None,
-        progress_bar: bool = False,
-        **kwargs
+        self, *, query: str | None = None, chunk_size: int | None = None, progress_bar: bool = False, **kwargs
     ) -> pl.DataFrame:
         username = self.target["user"]
         password = self.target["pass"]
@@ -36,7 +32,7 @@ class OracleAdapter(DatabaseAdapter):
                                 break
                             batches.extend(batch)
                             pbar.update(len(batch))
-                    
+
                     columns = [col[0] for col in cur.description]
                     return pl.DataFrame(data=batches, schema=columns)
             else:
@@ -47,8 +43,8 @@ class OracleAdapter(DatabaseAdapter):
                 return pl.from_arrow(oracle_df)
 
     def write_database(
-        self, 
-        data: pl.DataFrame | pd.DataFrame, 
+        self,
+        data: pl.DataFrame | pd.DataFrame,
         *,
         mode: str = "replace",
         identifiers: list[str] | None = None,
@@ -57,7 +53,7 @@ class OracleAdapter(DatabaseAdapter):
         progress_bar: bool = False,
         table_name: str,
         schema_name: str | None = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         if isinstance(data, pd.DataFrame):
             data = pl.from_pandas(data=data)
@@ -74,7 +70,7 @@ class OracleAdapter(DatabaseAdapter):
                     cast_exprs.append(pl.col(col_name).cast(target_dtype))
                 else:
                     print(f"[DBDF] Warning: No auto-cast mapped for Oracle type '{ora_type}'.")
-            
+
             if cast_exprs:
                 data = data.with_columns(cast_exprs)
 
@@ -87,14 +83,16 @@ class OracleAdapter(DatabaseAdapter):
 
         with oracledb.connect(user=self._q(username), password=password, dsn=dsn) as conn:
             self._ensure_table_exists(conn, schema, metadata, table_name, identifiers, overrides)
-            
+
             match mode:
                 case "append":
                     self._append(conn, schema, table_name, columns, data, chunk_size, progress_bar, **kwargs)
                 case "replace":
                     self._replace(conn, schema, table_name, columns, data, chunk_size, progress_bar, **kwargs)
                 case "upsert":
-                    self._upsert(conn, schema, table_name, columns, data, chunk_size, identifiers, progress_bar, **kwargs)
+                    self._upsert(
+                        conn, schema, table_name, columns, data, chunk_size, identifiers, progress_bar, **kwargs
+                    )
                 case _:
                     raise ValueError(f"Arg mode={mode} invalid")
 
@@ -113,49 +111,53 @@ class OracleAdapter(DatabaseAdapter):
             with tqdm(total=data.height, desc=f"Writing {table_name}", unit=" rows") as pbar:
                 for chunk in data.iter_slices(n_rows=batch_size):
                     conn.direct_path_load(
-                        schema_name=self._q(schema_name), 
-                        table_name=self._q(table_name), 
-                        column_names=[self._q(c) for c in column_names], 
-                        data=chunk, 
-                        **kwargs
+                        schema_name=self._q(schema_name),
+                        table_name=self._q(table_name),
+                        column_names=[self._q(c) for c in column_names],
+                        data=chunk,
+                        **kwargs,
                     )
                     pbar.update(len(chunk))
         else:
             conn.direct_path_load(
-                schema_name=self._q(schema_name), 
-                table_name=self._q(table_name), 
-                column_names=[self._q(c) for c in column_names], 
-                data=data, 
-                **kwargs
+                schema_name=self._q(schema_name),
+                table_name=self._q(table_name),
+                column_names=[self._q(c) for c in column_names],
+                data=data,
+                **kwargs,
             )
 
     # Truncate-Insert
     def _replace(self, conn, schema_name, table_name, column_names, data, batch_size, progress_bar, **kwargs):
         # Truncate
         with conn.cursor() as cur:
-            cur.execute(f'TRUNCATE TABLE {self._q(schema_name)}.{self._q(table_name)}')
+            cur.execute(f"TRUNCATE TABLE {self._q(schema_name)}.{self._q(table_name)}")
 
         # Insert
         self._append(conn, schema_name, table_name, column_names, data, batch_size, progress_bar, **kwargs)
 
     # Staging-Merge
-    def _upsert(self, conn, schema_name, table_name, column_names, data, batch_size, identifiers, progress_bar, **kwargs):
+    def _upsert(
+        self, conn, schema_name, table_name, column_names, data, batch_size, identifiers, progress_bar, **kwargs
+    ):
         # Staging
-        staging_table = f"{table_name}_staging" 
+        staging_table = f"{table_name}_staging"
         with conn.cursor() as cur:
-            cur.execute(f'CREATE TABLE {self._q(staging_table)} NOLOGGING AS SELECT * FROM {self._q(table_name)} WHERE 1=0')
-        
+            cur.execute(
+                f"CREATE TABLE {self._q(staging_table)} NOLOGGING AS SELECT * FROM {self._q(table_name)} WHERE 1=0"
+            )
+
         try:
             self._append(conn, schema_name, staging_table, column_names, data, batch_size, progress_bar, **kwargs)
 
             # Merge
             with conn.cursor() as cur:
-                match_cond = " AND ".join([f't.{self._q(c)} = s.{self._q(c)}' for c in identifiers])
+                match_cond = " AND ".join([f"t.{self._q(c)} = s.{self._q(c)}" for c in identifiers])
                 update_cols = [c for c in column_names if c not in identifiers]
-                update_set = ", ".join([f't.{self._q(c)} = s.{self._q(c)}' for c in update_cols])
+                update_set = ", ".join([f"t.{self._q(c)} = s.{self._q(c)}" for c in update_cols])
                 action = f"WHEN MATCHED THEN UPDATE SET {update_set}" if update_cols else ""
-                insert_cols = ", ".join([f'{self._q(c)}' for c in column_names])
-                insert_vals = ", ".join([f's.{self._q(c)}' for c in column_names])
+                insert_cols = ", ".join([f"{self._q(c)}" for c in column_names])
+                insert_vals = ", ".join([f"s.{self._q(c)}" for c in column_names])
 
                 QUERY_MERGE = f"""
                     MERGE INTO {self._q(table_name)} t
@@ -169,7 +171,7 @@ class OracleAdapter(DatabaseAdapter):
                 cur.execute(QUERY_MERGE)
         finally:
             with conn.cursor() as cur:
-                cur.execute(f'DROP TABLE {self._q(staging_table)} PURGE')
+                cur.execute(f"DROP TABLE {self._q(staging_table)} PURGE")
 
     # Polars to Oracle Type Mapping
     POLARS_TO_ORACLE: dict[type, str] = {
@@ -217,7 +219,7 @@ class OracleAdapter(DatabaseAdapter):
         base_dtype = dtype.base_type() if hasattr(dtype, "base_type") else dtype
         datatype = self.POLARS_TO_ORACLE.get(base_dtype)
         return datatype if datatype is not None else "VARCHAR2(4000)"
-        
+
     def _is_table_exists(self, conn, schema_name, table_name) -> bool:
         with conn.cursor() as cur:
             cur.execute(
@@ -226,29 +228,29 @@ class OracleAdapter(DatabaseAdapter):
                 table_name=table_name,
             )
             return cur.fetchone() is not None
-        
+
     def _ensure_table_exists(self, conn, schema_name, metadata, table_name, identifiers, overrides):
         if self._is_table_exists(conn, schema_name, table_name):
             return
-    
+
         print(f"[DBDF] Table {self._q(table_name)} not found. Auto-creating...")
-    
+
         # Infer datatype
         overrides = overrides or {}
         cols_def = []
         for col_name, dtype in metadata.items():
             ora_type = overrides.get(col_name) or self._infer_dtype(dtype)
-            cols_def.append(f'{self._q(col_name)} {ora_type}')
+            cols_def.append(f"{self._q(col_name)} {ora_type}")
         cols_sql = ", ".join(cols_def)
-    
+
         # Infer primary key
         pk_sql = ""
         if identifiers:
             pk_cols = ", ".join(self._q(c) for c in identifiers)
             pk_sql = f", PRIMARY KEY ({pk_cols})"
-    
+
         # Execute ddl
-        QUERY_CREATE = f'CREATE TABLE {self._q(schema_name)}.{self._q(table_name)} ({cols_sql}{pk_sql})'
+        QUERY_CREATE = f"CREATE TABLE {self._q(schema_name)}.{self._q(table_name)} ({cols_sql}{pk_sql})"
         print(f"[DBDF] Executing: {QUERY_CREATE}")
         with conn.cursor() as cur:
             cur.execute(QUERY_CREATE)

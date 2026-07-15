@@ -4,3 +4,4 @@ seed/
 *.parquet
 __pycache__
 seed.*
+*ruff_cache
