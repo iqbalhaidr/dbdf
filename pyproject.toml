@@ -1,0 +1,38 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+# The Golden Standard Rule Set
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (unused imports/variables)
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade (forces modern Python 3.12 syntax)
+    "B",   # flake8-bugbear (catches common Python bugs/gotchas)
+    "SIM", # flake8-simplify (suggests simpler, more readable code)
+    "D",   # pydocstyle (enforces docstrings - critical for a library!)
+]
+
+# Don't strictly enforce docstrings on tests or internal helper scripts
+[tool.ruff.lint.per-file-ignores]
+"test/**/*.py" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+# Enforces Google-style docstrings, which is widely adopted and highly readable
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+# Essential since some database drivers don't publish strict type hints
+ignore_missing_imports = true

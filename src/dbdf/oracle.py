@@ -95,6 +95,8 @@ class OracleAdapter(DatabaseAdapter):
                     self._replace(conn, schema, table_name, columns, data, chunk_size, progress_bar, **kwargs)
                 case "upsert":
                     self._upsert(conn, schema, table_name, columns, data, chunk_size, identifiers, progress_bar, **kwargs)
+                case _:
+                    raise ValueError(f"Arg mode={mode} invalid")
 
             conn.commit()
 

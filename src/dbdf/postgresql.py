@@ -92,6 +92,8 @@ class PostgresAdapter(DatabaseAdapter):
                     self._replace(conn, data, table_name, **kwargs)
                 case "upsert":
                     self._upsert(conn, data, table_name, identifiers, columns)
+                case _:
+                    raise ValueError(f"Arg mode={mode} invalid")
                 
             conn.commit()
     

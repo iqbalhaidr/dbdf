@@ -52,7 +52,6 @@ POSTGRESQL = "postgres://postgres:postgres@localhost:5432/db1"
 ORACLE = {"user": "PDBADMIN", "pass": "oracle", "dsn": "localhost:1521/FREEPDB1"}
 CSV = "test/seed.csv"
 PARQUET = "test/seed.parquet"
-CSV_ORIGINAL = "test/seed.original.csv"
 CSV_UPSERT = "test/seed.upsert.csv"
 
 df1 = pl.DataFrame({
@@ -106,13 +105,13 @@ print(f"Started: {datetime.now()}")
 # write_database(db_type="oracle", target=ORACLE, data=df2, mode="upsert", identifiers=["id"], chunk_size=100_000, overrides=None, progress_bar=False, table_name="Upsert")
 
 # Upsert Besar
-# df = read_database(db_type="csv", target=CSV_ORIGINAL, query='SELECT * FROM "Data"', chunk_size=100_000, progress_bar=True)
+# df = read_database(db_type="csv", target=CSV, query='SELECT * FROM "Data"', chunk_size=100_000, progress_bar=True)
 # write_database(db_type="postgresql", target=POSTGRESQL, data=df, mode="replace", identifiers=["id"], chunk_size=100_000, overrides=None, progress_bar=True, table_name="Upsert_Besar")
 # df = read_database(db_type="csv", target=CSV_UPSERT, query='SELECT * FROM "Data"', chunk_size=100_000, progress_bar=True)
 # write_database(db_type="postgresql", target=POSTGRESQL, data=df, mode="upsert", identifiers=["id"], chunk_size=100_000, overrides=None, progress_bar=True, table_name="Upsert_Besar")
 
-df = read_database(db_type="csv", target=CSV_ORIGINAL, query='SELECT * FROM "Data"', chunk_size=100_000, progress_bar=True)
-write_database(db_type="oracle", target=ORACLE, data=df, mode="replace", identifiers=["id"], chunk_size=100_000, overrides=None, progress_bar=True, table_name="Upsert_Besar")
+# df = read_database(db_type="csv", target=CSV, query='SELECT * FROM "Data"', chunk_size=100_000, progress_bar=True)
+# write_database(db_type="oracle", target=ORACLE, data=df, mode="replace", identifiers=["id"], chunk_size=100_000, overrides=None, progress_bar=True, table_name="Upsert_Besar")
 # df = read_database(db_type="csv", target=CSV_UPSERT, query='SELECT * FROM "Data"', chunk_size=100_000, progress_bar=True)
 # write_database(db_type="oracle", target=ORACLE, data=df, mode="upsert", identifiers=["id"], chunk_size=100_000, overrides=None, progress_bar=True, table_name="Upsert_Besar")
 
