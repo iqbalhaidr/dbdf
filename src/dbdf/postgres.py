@@ -48,7 +48,6 @@ class PostgresAdapter(DatabaseAdapter):
 
         # Extract columns name
         columns = df.columns
-        print(self.connection_info)
 
         with adbc_driver_postgresql.dbapi.connect(self.connection_uri) as conn:
             try:
